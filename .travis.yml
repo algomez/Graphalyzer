@@ -5,6 +5,9 @@ python:
   - "3.5"
 env:
   - SERVER_DIR=graphalyzer-server
+  - FRONTEND_DIR=graph_ui
+before_install:
+	cd $FRONTEND_DIR && npm install
 install: 
     cd $SERVER_DIR && pip install -r requirements.txt
 script: 
