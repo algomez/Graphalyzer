@@ -7,7 +7,7 @@ env:
   - SERVER_DIR=graphalyzer-server
   - FRONTEND_DIR=graph_ui
 install:
-    cd $FRONTEND_DIR && npm install
+    cd $FRONTEND_DIR && npm install && cd ..
     cd $SERVER_DIR && pip install -r requirements.txt
 script: 
     python -m unittest src/test/Test* 
