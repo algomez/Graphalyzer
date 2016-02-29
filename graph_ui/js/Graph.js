@@ -82,12 +82,34 @@ var Graph = React.createClass({
   },
 
   makeClusters: function(scale) {
-    var clusterOptions = {
-      borderWidth: 3, 
-      shape: 'dot', 
-      size: 200
+    var self = this;
+    var newClusters = [];
+    var options = {
+      processProperties: function(clusterOptions, childNodes, childEdges) {
+        self.setState(function(previousState, currentProps) {
+          return {
+            clusterIndex: previousState.clusterIndex + 1
+          };
+        });
+        clusterOptions.id = 'cluster-' + self.state.clusterIndex;
+        clusterOptions.label = childNodes.length;
+        newClusters.push({
+          id: 'cluster-' + self.state.clusterIndex,
+          scale: scale
+        });
+        return clusterOptions;
+      },
+      clusterNodeProperties: {
+        borderWidth: 3,
+        color: '#97C2FC',
+        shape: 'box', 
+        size: 60,      
+      }
     };
-    this.state.network.clusterByHubsize(undefined, clusterOptions);
+    this.setState({
+      clusters: newClusters
+    });
+    this.state.network.clusterByHubsize(undefined, options);
   },
 
   openClusters: function(scale) {
