@@ -11,6 +11,14 @@ var ReactDOM = require('react-dom');
 var Vis = require('vis');
 
 var Graph = React.createClass({
+  getInitialState: function() {
+    return {
+      clusters: [],
+      clusterIndex: 0,
+      lastZoomLevel: 0
+    };
+  },
+
   componentDidMount: function() {
     var element = ReactDOM.findDOMNode(this);
     this.setState({
@@ -73,6 +81,48 @@ var Graph = React.createClass({
     }
   },
 
+  makeClusters: function(scale) {
+    var clusterOptionsByData = {
+      processProperties: function (clusterOptions, childNodes) {
+        this.setState(function(previousState, currentProps) {
+          return {
+            clusterIndex: previousState.clusterIndex + 1
+          };
+        });
+        var childrenCount = 0;
+        for (var i = 0; i < childNodes.length; i++) {
+          childrenCount += childNodes[i].childrenCount || 1;
+        }
+        clusterOptions.childrenCount = childrenCount;
+        clusterOptions.label = "# " + childrenCount + "";
+        clusterOptions.font = {size: childrenCount*5+30}
+        clusterOptions.id = 'cluster:' + this.state.clusterIndex;
+        clusters.push({id:'cluster:' + this.state.clusterIndex, scale:scale});
+        return clusterOptions;
+      },
+      clusterNodeProperties: {borderWidth: 3, shape: 'dot', font: {size: 30}}
+    }
+    this.state.network.clusterOutliers(clusterOptionsByData);
+  },
+
+  openClusters: function(scale) {
+    var newClusters = [];
+    for (var i = 0; i < self.state.clusters.length; i++) {
+      if (self.state.clusters[i].scale < scale) {
+        self.state.network.openCluster(self.state.clusters[i].id);
+        self.setState({
+          lastClusterZoomLevel: scale
+        });
+      }
+      else {
+        newClusters.push(self.state.clusters[i])
+      }
+    }
+    self.setState({
+      clusters: newClusters
+    });
+  },
+
   isGraphEmpty: function() {
     return this.props.graphData.nodes.length == 0 && this.props.graphData.edges.length == 0;
   },
@@ -84,6 +134,7 @@ var Graph = React.createClass({
   },
 
   componentDidUpdate: function() {
+    var self = this;
     this.state.network.setData({
       nodes: this.props.graphData.nodes,
       edges: this.props.graphData.edges
@@ -93,22 +144,38 @@ var Graph = React.createClass({
 
     this.state.network.on('selectNode', function(event) {
       var nodeID = event.nodes[0];
-      var node = this.state.network.body.data.nodes.get(nodeID);
-      this.props.updateSelectedNode(node);
-    }.bind(this));
+      var node = self.state.network.body.data.nodes.get(nodeID);
+      self.props.updateSelectedNode(node);
+    });
 
     this.state.network.on('deselectNode', function(event) {
-      this.props.updateSelectedNode({});
-    }.bind(this));
+      self.props.updateSelectedNode({});
+    });
 
     // Called when Vis is finished drawing the graph
     this.state.network.on('afterDrawing', function(event) {
-      this.props.logger('Graph finished drawing');
-    }.bind(this));
+      self.props.logger('Graph finished drawing');
+      self.setState({
+        lastZoomLevel: self.state.network.getScale()
+      });
+    });
+
+    this.state.network.on('zoom', function(params) {
+      if (params.scale < self.state.lastZoomLevel * self.props.clusterFactor) {
+        if (params.direction == '-') {
+          self.makeClusters(params.scale);
+          self.setState({
+            lastZoomLevel: params.scale
+          });
+        }
+      } else
+        self.openClusters(params.scale);
+    });
   },
 
   getDefaultProps: function() {
     return {
+      clusterFactor: 1.1,
       options: {
         nodes: {
           shape: 'dot',
