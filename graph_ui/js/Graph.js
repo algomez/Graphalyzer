@@ -15,7 +15,8 @@ var Graph = React.createClass({
     return {
       clusters: [],
       clusterIndex: 0,
-      lastZoomLevel: 0
+      lastZoomLevel: 0,
+      network: null
     };
   },
 
@@ -30,6 +31,11 @@ var Graph = React.createClass({
     if (this.props.filter) {
       return this.props.filter.property && this.props.filter.option;
     } else return false;
+  },
+
+  getAverageConnectionCount: function() {
+    var nodes = this.state.network.body.nodes;
+    console.log(nodes);
   },
 
   filterOut: function(nodeID) {
@@ -136,31 +142,42 @@ var Graph = React.createClass({
     var self = this;
     var newClusters = [];
     var options = {
+      joinCondition: function(nodeOptions) {
+        self.getAverageConnectionCount();
+        return nodeOptions.amountOfConnections < 3;
+      },
       processProperties: function(clusterOptions, childNodes, childEdges) {
         self.setState(function(previousState, currentProps) {
           return {
             clusterIndex: previousState.clusterIndex + 1
           };
         });
-        clusterOptions.id = 'cluster-' + self.state.clusterIndex;
-        clusterOptions.label = childNodes.length;
+        var childrenCount = 0;
+        for (var i = 0; i < childNodes.length; i++)
+          childrenCount += childNodes[i].childrenCount || 1;
+
+        clusterOptions.childrenCount = childrenCount;
+        clusterOptions.label = "# " + childrenCount + "";
+        clusterOptions.font = {size: childrenCount * 5 + 30};
+        clusterOptions.id = 'cluster:' + self.state.clusterIndex;
         newClusters.push({
-          id: 'cluster-' + self.state.clusterIndex,
+          id:'cluster:' + self.state.clusterIndex, 
           scale: scale
         });
         return clusterOptions;
       },
       clusterNodeProperties: {
-        borderWidth: 3,
-        color: '#97C2FC',
-        shape: 'box', 
-        size: 60,      
+        borderWidth: 3, 
+        shape: 'database', 
+        font: {
+          size: 30
+        }
       }
     };
     this.setState({
       clusters: newClusters
     });
-    this.state.network.clusterByHubsize(undefined, options);
+    this.state.network.clustering.cluster(options);
   },
 
   openClusters: function(scale) {
